@@ -8,8 +8,10 @@ import java.nio.file.Paths;
 
 import javax.imageio.ImageIO;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import net.coobird.thumbnailator.Thumbnails;
@@ -17,8 +19,11 @@ import net.coobird.thumbnailator.geometry.Positions;
 
 @Component
 public class PhotoProcessor {
+	
+	@Autowired
+	private KafkaTemplate<String, String> kafkaTemplate;
 
-	@KafkaListener(topics="test", groupId="plantplaces")
+	@KafkaListener(topics="photoIn", groupId="plantphotos")
 	public void processPhoto(String path) {
 		try {
 			System.out.println("Path is: " + path);
@@ -33,9 +38,11 @@ public class PhotoProcessor {
 			BufferedImage watermark = ImageIO.read(watermarkFile);
 			Thumbnails.of(file).scale(1).watermark(Positions.BOTTOM_RIGHT, watermark, 0.9f).toFile(file);
 			Thumbnails.of(file).size(100, 100).toFile(thumbnailFile);
+			kafkaTemplate.send("photoOut", path);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			kafkaTemplate.send("photoException", path);
 		}
 		
 	}
